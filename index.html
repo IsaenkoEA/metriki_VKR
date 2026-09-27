@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Система метрик — Первый шаг в преподавании</title>
+<style>
+  :root {
+    --ns: #1F4E79;
+    --ns-light: #2E75B6;
+    --result: #2E75B6;
+    --diag: #5B9BD5;
+    --diag-light: #9DC3E6;
+    --engage: #70AD47;
+    --guard: #ED7D31;
+    --bg: #F4F7FB;
+    --card: #FFFFFF;
+    --text: #1F2937;
+    --muted: #6B7280;
+    --shadow: 0 4px 16px rgba(31, 78, 121, 0.10);
+    --shadow-hover: 0 12px 32px rgba(31, 78, 121, 0.20);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+    padding: 40px 24px;
+  }
+
+  .container { max-width: 1280px; margin: 0 auto; }
+
+  header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  header h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--ns);
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+  }
+
+  header p {
+    color: var(--muted);
+    font-size: 1.05rem;
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 40px;
+    padding: 16px 24px;
+    background: var(--card);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+
+  .legend-dot {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ===== Схема ===== */
+  .map {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    position: relative;
+  }
+
+  .tier {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    width: 100%;
+    position: relative;
+  }
+
+  .tier-label {
+    position: absolute;
+    top: -22px;
+    left: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--muted);
+  }
+
+  /* Соединительные линии */
+  .connector {
+    width: 2px;
+    height: 28px;
+    background: linear-gradient(to bottom, #C9D6E4, #C9D6E4);
+    position: relative;
+  }
+
+  .connector::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 8px solid #C9D6E4;
+  }
+
+  /* ===== Карточки ===== */
+  .card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 20px 22px;
+    box-shadow: var(--shadow);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    min-width: 240px;
+    max-width: 300px;
+    flex: 1 1 240px;
+    border-top: 4px solid transparent;
+  }
+
+  .card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-hover);
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+  }
+
+  .card:hover::before { opacity: 0.06; }
+
+  .card .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 10px;
+  }
+
+  .card h3 {
+    font-size: 0.98rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+
+  .card .role {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 10px;
+  }
+
+  .card p {
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+
+  .card .metric-value {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed #E5EAF0;
+    font-size: 0.78rem;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .card .metric-value strong {
+    color: var(--ns);
+    font-size: 0.95rem;
+  }
+
+  /* ===== Цветовые схемы ===== */
+  .card.ns {
+    border-top-color: var(--ns);
+    min-width: 300px;
+    max-width: 380px;
+    background: linear-gradient(135deg, #1F4E79 0%, #2E75B6 100%);
+    color: #fff;
+  }
+  .card.ns h3, .card.ns p { color: #fff; }
+  .card.ns p { color: rgba(255,255,255,0.85); }
+  .card.ns .num { background: rgba(255,255,255,0.2); }
+  .card.ns .role { background: rgba(255,255,255,0.18); color: #fff; }
+  .card.ns .metric-value { border-top-color: rgba(255,255,255,0.25); color: rgba(255,255,255,0.85); }
+  .card.ns .metric-value strong { color: #fff; }
+  .card.ns::before { background: #fff; }
+
+  .card.result { border-top-color: var(--result); }
+  .card.result .num { background: var(--result); }
+  .card.result .role { background: #E6F0FA; color: var(--result); }
+  .card.result::before { background: var(--result); }
+
+  .card.diag { border-top-color: var(--diag); }
+  .card.diag .num { background: var(--diag); }
+  .card.diag .role { background: #EAF2FB; color: #2E75B6; }
+  .card.diag::before { background: var(--diag); }
+
+  .card.engage { border-top-color: var(--engage); }
+  .card.engage .num { background: var(--engage); }
+  .card.engage .role { background: #EDF6E6; color: #4E8A2E; }
+  .card.engage::before { background: var(--engage); }
+
+  .card.guard { border-top-color: var(--guard); }
+  .card.guard .num { background: var(--guard); }
+  .card.guard .role { background: #FDF0E6; color: #C25A17; }
+  .card.guard::before { background: var(--guard); }
+
+  /* ===== Подсказка ===== */
+  .hint {
+    text-align: center;
+    margin-top: 48px;
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  /* ===== Модальное окно ===== */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 30, 50, 0.55);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+
+  .modal-overlay.active {
+    display: flex;
+    opacity: 1;
+  }
+
+  .modal {
+    background: #fff;
+    border-radius: 20px;
+    max-width: 560px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 32px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.25);
+    transform: translateY(12px);
+    transition: transform 0.25s ease;
+    position: relative;
+  }
+
+  .modal-overlay.active .modal { transform: translateY(0); }
+
+  .modal .close {
+    position: absolute;
+    top: 16px; right: 20px;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--muted);
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px 8px;
+    border-radius: 8px;
+    transition: background 0.2s;
+  }
+  .modal .close:hover { background: #F0F4F8; }
+
+  .modal .badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 14px;
+  }
+
+  .modal h2 {
+    font-size: 1.35rem;
+    margin-bottom: 16px;
+    line-height: 1.3;
+    color: var(--ns);
+  }
+
+  .modal .field {
+    margin-bottom: 14px;
+    font-size: 0.9rem;
+  }
+
+  .modal .field strong {
+    display: block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+
+  .modal .field span { color: var(--text); }
+
+  /* ===== Адаптив ===== */
+  @media (max-width: 720px) {
+    header h1 { font-size: 1.4rem; }
+    .card { min-width: 100%; max-width: 100%; }
+    .card.ns { min-width: 100%; max-width: 100%; }
+    .tier { flex-direction: column; align-items: center; }
+    .tier-label { position: static; text-align: center; width: 100%; margin-bottom: 8px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>Система метрик курса «Первый шаг в преподавании»</h1>
+    <p>8 показателей: от вовлечённости до готовности к преподаванию</p>
+  </header>
+
+  <!-- Легенда -->
+  <div class="legend">
+    <div class="legend-item"><span class="legend-dot" style="background:#1F4E79"></span>North Star</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#2E75B6"></span>Результирующая</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#5B9BD5"></span>Диагностическая</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#70AD47"></span>Вовлечённость</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#ED7D31"></span>Ограничивающая</div>
+  </div>
+
+  <!-- Схема -->
+  <div class="map">
+
+    <!-- Tier 1: North Star -->
+    <div class="tier">
+      <div class="tier-label" style="position:static;margin-bottom:4px;">★ North Star</div>
+    </div>
+    <div class="tier">
+      <div class="card ns" data-id="1">
+        <span class="num">1</span>
+        <span class="role">North Star</span>
+        <h3>Применение ключевых ресурсов</h3>
+        <p>Доля слушателей, использующих шаблоны и чек-листы в заданиях или итоговом проекте.</p>
+        <div class="metric-value"><span>Цель</span><strong>≥ 60%</strong></div>
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- Tier 2: Результирующая -->
+    <div class="tier">
+      <div class="tier-label" style="position:static;margin-bottom:4px;">Результирующая</div>
+    </div>
+    <div class="tier">
+      <div class="card result" data-id="2">
+        <span class="num">2</span>
+        <span class="role">Результирующая</span>
+        <h3>Завершение итогового проекта</h3>
+        <p>Доля слушателей, сдавших итоговый проект и получивших оценку не ниже пороговой.</p>
+        <div class="metric-value"><span>Цель</span><strong>≥ 60%</strong></div>
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- Tier 3: Диагностические -->
+    <div class="tier">
+      <div class="tier-label" style="position:static;margin-bottom:4px;">Диагностические</div>
+    </div>
+    <div class="tier">
+      <div class="card diag" data-id="3">
+        <span class="num">3</span>
+        <span class="role">Диагностическая</span>
+        <h3>Прогресс прохождения модулей</h3>
+        <p>% выполненных обязательных единиц от общего числа.</p>
+        <div class="metric-value"><span>Цель</span><strong>≥ 70%</strong></div>
+      </div>
+      <div class="card diag" data-id="4">
+        <span class="num">4</span>
+        <span class="role">Диагностическая</span>
+        <h3>Выполнение обязательных заданий</h3>
+        <p>Доля сданных заданий от числа, срок которых наступил.</p>
+        <div class="metric-value"><span>Цель</span><strong>≥ 75%</strong></div>
+      </div>
+      <div class="card diag" data-id="5">
+        <span class="num">5</span>
+        <span class="role">Диагностическая</span>
+        <h3>Темп прохождения</h3>
+        <p>Медианное время между завершением последовательных модулей.</p>
+        <div class="metric-value"><span>Ориентир</span><strong>1 модуль / нед.</strong></div>
+      </div>
+      <div class="card diag" data-id="6">
+        <span class="num">6</span>
+        <span class="role">Диагностическая</span>
+        <h3>Отсев по модулям</h3>
+        <p>Доля слушателей, прекративших активность на конкретном модуле.</p>
+        <div class="metric-value"><span>Цель</span><strong>≤ 20%</strong></div>
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- Tier 4: Вовлечённость -->
+    <div class="tier">
+      <div class="tier-label" style="position:static;margin-bottom:4px;">Вовлечённость</div>
+    </div>
+    <div class="tier">
+      <div class="card engage" data-id="7">
+        <span class="num">7</span>
+        <span class="role">Вовлечённость</span>
+        <h3>Регулярность активности</h3>
+        <p>Доля недель с учебной активностью от общего числа недель обучения.</p>
+        <div class="metric-value"><span>Цель</span><strong>≥ 60%</strong></div>
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- Tier 5: Ограничивающая -->
+    <div class="tier">
+      <div class="tier-label" style="position:static;margin-bottom:4px;">Ограничивающая</div>
+    </div>
+    <div class="tier">
+      <div class="card guard" data-id="8">
+        <span class="num">8</span>
+        <span class="role">Ограничивающая</span>
+        <h3>Превышение времени на модуль</h3>
+        <p>Доля слушателей, потративших на модуль больше рекомендованного времени.</p>
+        <div class="metric-value"><span>Цель</span><strong>≤ 20%</strong></div>
+      </div>
+    </div>
+
+  </div>
+
+  <p class="hint">Нажмите на карточку, чтобы увидеть паспорт метрики</p>
+</div>
+
+<!-- Модальное окно -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <button class="close" id="close">&times;</button>
+    <span class="badge" id="m-badge"></span>
+    <h2 id="m-title"></h2>
+    <div class="field"><strong>Цель продукта</strong><span id="m-goal"></span></div>
+    <div class="field"><strong>Аналитический вопрос</strong><span id="m-question"></span></div>
+    <div class="field"><strong>Роль в системе</strong><span id="m-role"></span></div>
+    <div class="field"><strong>Определение</strong><span id="m-def"></span></div>
+    <div class="field"><strong>Формула / правило расчёта</strong><span id="m-formula"></span></div>
+    <div class="field"><strong>Периодичность</strong><span id="m-freq"></span></div>
+    <div class="field"><strong>Источник данных</strong><span id="m-source"></span></div>
+    <div class="field"><strong>Сегментация</strong><span id="m-seg"></span></div>
+    <div class="field"><strong>Ограничения</strong><span id="m-limits"></span></div>
+    <div class="field"><strong>Целевое значение</strong><span id="m-target"></span></div>
+    <div class="field"><strong>Какое решение поддерживает</strong><span id="m-decision"></span></div>
+  </div>
+</div>
+
+<script>
+  const data = {
+    1: {
+      badge: 'North Star', badgeBg: '#1F4E79', badgeColor: '#fff',
+      title: 'Применение ключевых ресурсов',
+      goal: 'Обеспечить практическое использование шаблонов и чек-листов в преподавательской деятельности',
+      question: 'Какая доля слушателей применяет ключевые ресурсы курса (шаблоны, чек-листы) в заданиях или итоговом проекте?',
+      role: 'Результирующая (North Star)',
+      def: 'Доля слушателей, которые использовали хотя бы один ключевой ресурс при выполнении заданий или итогового проекта',
+      formula: '(Число слушателей, применивших ≥ 1 ключевой ресурс) / (Число слушателей, приступивших к курсу) × 100%',
+      freq: 'По завершении курса / итогового проекта',
+      source: 'SmartLMS (логи скачиваний, отметки в заданиях), рубрика итогового проекта, опрос',
+      seg: 'По трекам (базовый / продвинутый), по типам ресурсов',
+      limits: 'Скачивание ≠ применение; возможно измерение через логи и самоотчёт',
+      target: '≥ 60%',
+      decision: 'Усиление практико-ориентированных заданий, продвижение ресурсов, доработка шаблонов'
+    },
+    2: {
+      badge: 'Результирующая', badgeBg: '#E6F0FA', badgeColor: '#2E75B6',
+      title: 'Завершение итогового проекта',
+      goal: 'Обеспечить готовность преподавателя-практика к самостоятельному проведению занятия',
+      question: 'Какая доля слушателей успешно завершает итоговый проект?',
+      role: 'Результирующая (поддерживающая)',
+      def: 'Доля слушателей, сдавших итоговый проект и получивших оценку не ниже пороговой',
+      formula: '(Число слушателей, завершивших итоговый проект) / (Число слушателей, приступивших к курсу) × 100%',
+      freq: 'По завершении курса',
+      source: 'SmartLMS (журнал оценок, отметки о сдаче)',
+      seg: 'По трекам',
+      limits: 'Итоговый проект может быть не полностью продуман; пороговая оценка может быть субъективной',
+      target: '≥ 60%',
+      decision: 'Корректировка содержания курса, добавление поддержки на финальном этапе'
+    },
+    3: {
+      badge: 'Диагностическая', badgeBg: '#EAF2FB', badgeColor: '#2E75B6',
+      title: 'Прогресс прохождения модулей',
+      goal: 'Отслеживать продвижение слушателя по траектории курса',
+      question: 'Какая доля обязательных единиц курса пройдена слушателем?',
+      role: 'Процессная / диагностическая',
+      def: 'Процент выполненных обязательных элементов (страниц, заданий) от общего числа',
+      formula: '(Выполненные обязательные единицы) / (Все обязательные единицы) × 100%',
+      freq: 'Еженедельно',
+      source: 'SmartLMS (логи, прогресс-бар)',
+      seg: 'По трекам',
+      limits: 'Разный вес элементов, нелинейные траектории',
+      target: 'Средний прогресс ≥ 70% к концу курса',
+      decision: 'Выявление «застреваний», корректировка контента, напоминания'
+    },
+    4: {
+      badge: 'Диагностическая', badgeBg: '#EAF2FB', badgeColor: '#2E75B6',
+      title: 'Выполнение обязательных заданий',
+      goal: 'Обеспечить практическое освоение материала',
+      question: 'Какова доля сданных обязательных заданий от числа, срок которых наступил?',
+      role: 'Процессная / диагностическая',
+      def: 'Доля заданий (тесты, чек-листы, кейсы), сданных в срок или с опозданием',
+      formula: '(Сданные обязательные задания) / (Задания, срок которых уже наступил) × 100%',
+      freq: 'Еженедельно',
+      source: 'SmartLMS (журнал заданий)',
+      seg: 'По трекам, по типам заданий',
+      limits: 'Низкая сдача может быть вызвана плохой инструкцией, а не мотивацией',
+      target: '≥ 75%',
+      decision: 'Улучшение инструкций, напоминания, упрощение заданий'
+    },
+    5: {
+      badge: 'Диагностическая', badgeBg: '#EAF2FB', badgeColor: '#2E75B6',
+      title: 'Темп прохождения',
+      goal: 'Соответствие ритма обучения дизайну курса',
+      question: 'С какой скоростью слушатели проходят модули?',
+      role: 'Диагностическая / опережающая',
+      def: 'Медианное время между завершением последовательных модулей',
+      formula: 'Медиана разницы дат между завершением модуля N и N+1',
+      freq: 'Ежемесячно',
+      source: 'SmartLMS (логи завершения модулей)',
+      seg: 'По трекам',
+      limits: 'Для асинхронного курса темп может сильно варьироваться',
+      target: 'Соответствие рекомендованному графику (1 модуль в неделю)',
+      decision: 'Напоминания, корректировка дедлайнов, поддержка отстающих'
+    },
+    6: {
+      badge: 'Диагностическая', badgeBg: '#EAF2FB', badgeColor: '#2E75B6',
+      title: 'Отсев по модулям',
+      goal: 'Выявить этапы, на которых слушатели прекращают обучение',
+      question: 'На каком модуле происходит наибольший отсев?',
+      role: 'Диагностическая',
+      def: 'Доля слушателей, прекративших активность на конкретном модуле (не завершивших его)',
+      formula: '(Число слушателей, не завершивших модуль) / (Число слушателей, приступивших к модулю) × 100%',
+      freq: 'По завершении каждого модуля',
+      source: 'SmartLMS (логи активности)',
+      seg: 'По трекам',
+      limits: '«Прекращение активности» требует чёткого определения (например, отсутствие действий > 7 дней)',
+      target: 'Отсев на каждом модуле ≤ 20%',
+      decision: 'Доработка проблемного модуля, добавление поддержки'
+    },
+    7: {
+      badge: 'Вовлечённость', badgeBg: '#EDF6E6', badgeColor: '#4E8A2E',
+      title: 'Регулярность активности',
+      goal: 'Обеспечить равномерное прохождение курса без длительных перерывов',
+      question: 'Насколько регулярно слушатели возвращаются к курсу?',
+      role: 'Вовлечённость',
+      def: 'Доля недель с учебной активностью от общего числа недель обучения',
+      formula: '(Число активных недель) / (Общее число недель) × 100% для каждого слушателя, затем среднее',
+      freq: 'Ежемесячно',
+      source: 'SmartLMS (логи входов, действий)',
+      seg: 'По трекам',
+      limits: 'Может не учитывать активность вне LMS',
+      target: 'Средняя регулярность ≥ 60%',
+      decision: 'Введение еженедельных микро-целей, автоматические напоминания'
+    },
+    8: {
+      badge: 'Ограничивающая', badgeBg: '#FDF0E6', badgeColor: '#C25A17',
+      title: 'Превышение времени на модуль',
+      goal: 'Сохранить микроформат и экономию времени как ключевую ценность продукта',
+      question: 'Какая доля слушателей тратит на модуль больше времени, чем заявлено в дизайне?',
+      role: 'Ограничивающая',
+      def: 'Доля слушателей, у которых время от начала до завершения модуля превысило рекомендованный норматив',
+      formula: '(Число слушателей, превысивших норматив) / (Число слушателей, завершивших модуль) × 100%',
+      freq: 'По завершении каждого модуля',
+      source: 'SmartLMS (логи времени)',
+      seg: 'По трекам',
+      limits: 'Время в LMS может не отражать реальные затраты (фоновая активность, перерывы)',
+      target: '≤ 20%',
+      decision: 'Пересмотр объёма модуля, декомпозиция контента, вынос части материалов в дополнительные ресурсы'
+    }
+  };
+
+  const modal = document.getElementById('modal');
+  const closeBtn = document.getElementById('close');
+
+  document.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('click', () => {
+      const id = card.dataset.id;
+      const d = data[id];
+      if (!d) return;
+
+      document.getElementById('m-badge').textContent = d.badge;
+      document.getElementById('m-badge').style.background = d.badgeBg;
+      document.getElementById('m-badge').style.color = d.badgeColor;
+      document.getElementById('m-title').textContent = d.title;
+      document.getElementById('m-goal').textContent = d.goal;
+      document.getElementById('m-question').textContent = d.question;
+      document.getElementById('m-role').textContent = d.role;
+      document.getElementById('m-def').textContent = d.def;
+      document.getElementById('m-formula').textContent = d.formula;
+      document.getElementById('m-freq').textContent = d.freq;
+      document.getElementById('m-source').textContent = d.source;
+      document.getElementById('m-seg').textContent = d.seg;
+      document.getElementById('m-limits').textContent = d.limits;
+      document.getElementById('m-target').textContent = d.target;
+      document.getElementById('m-decision').textContent = d.decision;
+
+      modal.classList.add('active');
+    });
+  });
+
+  closeBtn.addEventListener('click', () => modal.classList.remove('active'));
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.classList.remove('active');
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') modal.classList.remove('active');
+  });
+</script>
+</body>
+</html>
